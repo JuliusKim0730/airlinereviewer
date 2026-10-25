@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-export const SERVICE_NAME = "내가 탄 비행기";
+export const SERVICE_NAME = "티뷰";
+export const SERVICE_TAGLINE = "내가 탄 비행기 티켓 리뷰";
 
 const SEEN_KEY = "alr.splashSeen";
 const PLAY_MS = 3600;
@@ -80,7 +81,7 @@ export default function Splash() {
             <Cloud className="sp-puff" />
           </div>
           <h1 className="sp-logo">{SERVICE_NAME}</h1>
-          <p className="sp-tagline">내가 탄 비행기에서 시작하는 여행</p>
+          <p className="sp-tagline">{SERVICE_TAGLINE}</p>
           <div className="sp-flight">
             <div className="sp-craft">
               <div className="sp-contrail" />

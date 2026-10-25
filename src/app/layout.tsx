@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "내가 탄 비행기",
+  title: "티뷰 - 내가 탄 비행기 티켓 리뷰",
   description: "항공권 인증 기반 여행 리뷰·동행 앱",
 };
 

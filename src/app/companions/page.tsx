@@ -40,7 +40,7 @@ export default function CompanionsPage() {
         ))}
       </ul>
       {notice && (
-        <p className="fixed inset-x-4 bottom-20 z-30 mx-auto max-w-md rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm text-white" onClick={() => setNotice(null)}>
+        <p className="fixed inset-x-4 bottom-24 z-30 mx-auto max-w-md rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm text-white" onClick={() => setNotice(null)}>
           {notice}
         </p>
       )}

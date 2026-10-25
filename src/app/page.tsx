@@ -3,27 +3,22 @@
 import { useState } from "react";
 import { useRequireAccess } from "@/components/Gate";
 import Splash from "@/components/Splash";
-import { SAMPLE_REVIEWS, SAMPLE_STORIES } from "@/lib/sampleData";
+import TravelMap from "@/components/TravelMap";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { cityActivity } from "@/lib/cityActivity";
+import { SAMPLE_COMPANIONS, SAMPLE_REVIEWS, SAMPLE_STORIES } from "@/lib/sampleData";
+
+const CITIES = cityActivity({ stories: SAMPLE_STORIES, companions: SAMPLE_COMPANIONS, reviews: SAMPLE_REVIEWS });
 
 export default function Home() {
+  const auth = useAuth();
   const requireAccess = useRequireAccess();
-  const [liked, setLiked] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
-
-  const toggleLike = (id: string) =>
-    requireAccess("react", () =>
-      setLiked((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        return next;
-      }),
-    );
 
   return (
     <>
       <Splash />
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-semibold">지금 이 순간</h2>
@@ -49,40 +44,12 @@ export default function Home() {
         </section>
 
         <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold">인증 탑승객 후기</h2>
-            <button
-              className="rounded-full bg-sky-600 px-3 py-1 text-sm font-medium text-white"
-              onClick={() => requireAccess("writeReview", () => setNotice("후기 작성 화면은 다음 단계에서 열려요."))}
-            >
-              후기 쓰기
-            </button>
-          </div>
-          <ul className="flex flex-col gap-3">
-            {SAMPLE_REVIEWS.map((r) => (
-              <li key={r.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-                <div className="flex items-baseline justify-between">
-                  <span className="font-semibold">{r.route}</span>
-                  <span className="text-sm text-zinc-500">
-                    {r.flight} · {r.aircraft} · {r.seat}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm">{r.text}</p>
-                <div className="mt-3 flex items-center justify-between text-sm text-zinc-500">
-                  <span>
-                    {r.author} · <span className="text-sky-700 dark:text-sky-400">인증 탑승</span> · ★ {r.rating}
-                  </span>
-                  <button onClick={() => toggleLike(r.id)} aria-pressed={liked.has(r.id)}>
-                    {liked.has(r.id) ? "♥ 좋아요" : "♡ 좋아요"}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <h2 className="mb-3 font-semibold">여행자들이 있는 곳</h2>
+          <TravelMap cities={CITIES} routes={auth.trips} />
         </section>
 
         {notice && (
-          <p className="fixed inset-x-4 bottom-20 z-30 mx-auto max-w-md rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm text-white" onClick={() => setNotice(null)}>
+          <p className="fixed inset-x-4 bottom-24 z-30 mx-auto max-w-md rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm text-white" onClick={() => setNotice(null)}>
             {notice}
           </p>
         )}

@@ -242,3 +242,19 @@ body {
     width: 100%;
   }
 }
+
+/* Map labels: a thin halo in the map background colour keeps text legible over land and sea. */
+.map-label {
+  font-size: 12.5px;
+  fill: #18181b;
+  stroke: #ffffff;
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+@media (prefers-color-scheme: dark) {
+  .map-label {
+    fill: #f4f4f5;
+    stroke: #082f49;
+  }
+}

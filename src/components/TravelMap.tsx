@@ -78,7 +78,7 @@ export default function TravelMap({ cities, routes }: Props) {
               <g transform={`translate(${x} ${y})`} aria-label="인천국제공항">
                 <circle r={7} className="fill-zinc-900 dark:fill-white" stroke="white" strokeWidth={2} />
                 <circle r={2.5} className="fill-white dark:fill-zinc-900" />
-                <text x={11} y={4} className="fill-zinc-900 text-[11px] font-bold dark:fill-white" paintOrder="stroke" stroke="white" strokeWidth={3}>
+                <text x={11} y={4} className="map-label font-bold">
                   인천
                 </text>
               </g>
@@ -95,7 +95,7 @@ export default function TravelMap({ cities, routes }: Props) {
                   <circle r={r} className="animate-ping fill-sky-400/60" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
                 )}
                 <circle r={r} className={active ? "fill-sky-800" : "fill-sky-600"} stroke="white" strokeWidth={2} />
-                <text y={r + 13} textAnchor="middle" className="fill-zinc-800 text-[11px] font-semibold dark:fill-zinc-100" paintOrder="stroke" stroke="white" strokeWidth={3}>
+                <text y={r + 13} textAnchor="middle" className="map-label font-semibold">
                   {c.city}
                 </text>
               </g>

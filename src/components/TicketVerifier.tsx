@@ -4,6 +4,9 @@ import { useState } from "react";
 import { BcbpError, parseBcbp, type BoardingPass } from "@/lib/bcbp";
 import { findAirport } from "@/lib/airports";
 import { greatCircleKm } from "@/lib/geo";
+import { ticketHash } from "@/lib/ticketHash";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useRequireAccess } from "./Gate";
 
 const SAMPLE = "M1DESMARAIS/LUC       EABC123 YULFRAAC 0834 326J001A0025 100";
 
@@ -11,9 +14,38 @@ export default function TicketVerifier() {
   const [raw, setRaw] = useState("");
   const [pass, setPass] = useState<BoardingPass | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const auth = useAuth();
+  const requireAccess = useRequireAccess();
+
+  async function save(p: BoardingPass) {
+    const trips = await Promise.all(
+      p.legs.map(async (leg) => ({
+        from: leg.from,
+        to: leg.to,
+        carrier: leg.carrier,
+        flightNumber: leg.flightNumber,
+        date: leg.date,
+        seat: leg.seat,
+        compartment: leg.compartment,
+        ticketHash: await ticketHash(p, leg),
+      })),
+    );
+    try {
+      const { added, duplicates } = await auth.addTrips(trips);
+      setSaved(
+        duplicates > 0
+          ? `${added}개 구간을 인증했어요. ${duplicates}개 구간은 이미 인증된 티켓이에요.`
+          : `${added}개 구간을 인증했어요. 이제 후기와 동행이 열려요.`,
+      );
+    } catch {
+      setSaved("저장에 실패했어요. 잠시 후 다시 시도해 주세요.");
+    }
+  }
 
   function verify(text: string) {
     setRaw(text);
+    setSaved(null);
     try {
       setPass(parseBcbp(text));
       setError(null);
@@ -86,6 +118,14 @@ export default function TicketVerifier() {
               </article>
             );
           })}
+          <button
+            type="button"
+            className="rounded-xl bg-sky-600 px-4 py-3 font-medium text-white"
+            onClick={() => requireAccess("verifyTicket", () => save(pass))}
+          >
+            이 탑승으로 인증하기
+          </button>
+          {saved && <p className="text-sm text-sky-700 dark:text-sky-400">{saved}</p>}
         </div>
       )}
     </section>

@@ -232,3 +232,13 @@ body {
     animation-delay: 0ms;
   }
 }
+
+/* Story progress bar (components/Stories.tsx) */
+@keyframes story {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}

@@ -19,7 +19,8 @@ export type NewTrip = Omit<Trip, "id" | "verifiedAt"> & {
 
 export interface AuthState {
   account: AccountKind;
-  displayName: string | null;
+  userId: string | null;
+  nickname: string | null;
   trips: Trip[];
 }
 
@@ -37,7 +38,10 @@ export interface AuthBackend {
   signInWithGoogle(): Promise<void>;
   signOut(): Promise<void>;
   addTrips(trips: NewTrip[]): Promise<AddTripsResult>;
+  setNickname(nickname: string): Promise<void>;
   onChange(listener: () => void): () => void;
 }
 
-export const EMPTY_STATE: AuthState = { account: "none", displayName: null, trips: [] };
+export const EMPTY_STATE: AuthState = { account: "none", userId: null, nickname: null, trips: [] };
+
+export const randomNickname = () => `여행자${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`;

@@ -8,6 +8,7 @@ import type { Topology, GeometryObject } from "topojson-specification";
 import land from "world-atlas/land-110m.json";
 import { findAirport } from "@/lib/airports";
 import type { CityActivity } from "@/lib/cityActivity";
+import ProductCards from "./ProductCards";
 
 const W = 400;
 const H = 440;
@@ -17,6 +18,9 @@ const VIEWS = {
   world: { label: "세계", bounds: [[-170, -50], [180, 72]] as [number, number][] },
 };
 type ViewKey = keyof typeof VIEWS;
+
+/** Korean service: Incheon is always on the map as the home base. */
+const HOME = findAirport("ICN")!;
 
 const topology = land as unknown as Topology<{ land: GeometryObject }>;
 const landShape = feature(topology, topology.objects.land);
@@ -50,7 +54,7 @@ export default function TravelMap({ cities, routes }: Props) {
     .filter(([a, b]) => a && b)
     .map(([a, b]) => ({ a: a!, b: b! }));
   const arcs = legs.map(({ a, b }) => path({ type: "LineString", coordinates: [[a.lon, a.lat], [b.lon, b.lat]] }) ?? "");
-  const endpoints = [...new Map(legs.flatMap(({ a, b }) => [a, b]).map((ap) => [ap.iata, ap])).values()];
+  const endpoints = [...new Map(legs.flatMap(({ a, b }) => [a, b]).map((ap) => [ap.iata, ap])).values()].filter((ap) => ap.iata !== HOME.iata);
 
   const city = cities.find((c) => c.iata === selected);
 
@@ -68,6 +72,18 @@ export default function TravelMap({ cities, routes }: Props) {
             const [x, y] = project(ap.lon, ap.lat);
             return <circle key={ap.iata} cx={x} cy={y} r={3} className="fill-white stroke-sky-600" strokeWidth={1.6} />;
           })}
+          {(() => {
+            const [x, y] = project(HOME.lon, HOME.lat);
+            return (
+              <g transform={`translate(${x} ${y})`} aria-label="인천국제공항">
+                <circle r={7} className="fill-zinc-900 dark:fill-white" stroke="white" strokeWidth={2} />
+                <circle r={2.5} className="fill-white dark:fill-zinc-900" />
+                <text x={11} y={4} className="fill-zinc-900 text-[11px] font-bold dark:fill-white" paintOrder="stroke" stroke="white" strokeWidth={3}>
+                  인천
+                </text>
+              </g>
+            );
+          })()}
           {cities.map((c) => {
             const [x, y] = project(c.lon, c.lat);
             const active = c.iata === selected;
@@ -115,6 +131,9 @@ export default function TravelMap({ cities, routes }: Props) {
             <Link href="/companions" className="flex-1 rounded-lg bg-sky-600 py-2 text-center font-medium text-white">
               동행 보기
             </Link>
+          </div>
+          <div className="mt-4">
+            <ProductCards iata={city.iata} city={city.city} />
           </div>
         </div>
       ) : (

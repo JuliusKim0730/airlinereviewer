@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AuthBackend, AuthState, NewTrip, Trip } from "./types";
 import { EMPTY_STATE } from "./types";
 
@@ -26,9 +26,7 @@ const toTrip = (r: TripRow): Trip => ({
   verifiedAt: r.created_at,
 });
 
-export function createSupabaseBackend(url: string, anonKey: string): AuthBackend {
-  const supabase = createClient(url, anonKey);
-
+export function createSupabaseBackend(supabase: SupabaseClient): AuthBackend {
   return {
     mode: "supabase",
     async load(): Promise<AuthState> {
@@ -39,9 +37,11 @@ export function createSupabaseBackend(url: string, anonKey: string): AuthBackend
         .from("trips")
         .select("id, dep_iata, arr_iata, carrier, flight_number, flight_date, seat, compartment, created_at")
         .order("flight_date", { ascending: false });
+      const { data: profile } = await supabase.from("profiles").select("nickname").eq("id", user.id).maybeSingle();
       return {
         account: user.is_anonymous ? "guest" : "google",
-        displayName: (user.user_metadata?.full_name as string | undefined) ?? null,
+        userId: user.id,
+        nickname: (profile?.nickname as string | undefined) ?? null,
         trips: (rows ?? []).map(toTrip),
       };
     },
@@ -83,6 +83,13 @@ export function createSupabaseBackend(url: string, anonKey: string): AuthBackend
         else if (error.code !== "23505") throw error; // 23505 = ticket already claimed
       }
       return { added, duplicates: newTrips.length - added };
+    },
+    async setNickname(nickname) {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user.id;
+      if (!userId) return;
+      const { error } = await supabase.from("profiles").update({ nickname }).eq("id", userId);
+      if (error) throw error;
     },
     onChange(listener) {
       const { data } = supabase.auth.onAuthStateChange(() => listener());

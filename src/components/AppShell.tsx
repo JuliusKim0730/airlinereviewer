@@ -34,7 +34,7 @@ function AccountBadge() {
       </button>
     );
   }
-  const label = auth.account === "google" ? auth.displayName ?? "구글 계정" : "게스트";
+  const label = `${auth.nickname ?? "여행자"} · ${auth.account === "google" ? "구글" : "게스트"}`;
   return (
     <span className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
       {label}

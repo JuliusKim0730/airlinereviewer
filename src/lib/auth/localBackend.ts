@@ -2,14 +2,15 @@
 // and trips in localStorage so the whole flow can be tried without a server.
 
 import type { AuthBackend, AuthState, NewTrip, Trip } from "./types";
-import { EMPTY_STATE } from "./types";
+import { EMPTY_STATE, randomNickname } from "./types";
 
 const SESSION_KEY = "alr.session";
 const TRIPS_KEY = "alr.trips";
 
 interface StoredSession {
   account: "guest" | "google";
-  displayName: string | null;
+  userId: string;
+  nickname: string;
 }
 
 type StoredTrip = Trip & { ticketHash: string };
@@ -41,6 +42,12 @@ export function createLocalBackend(): AuthBackend {
     async load(): Promise<AuthState> {
       const session = read<StoredSession>(SESSION_KEY);
       if (!session) return EMPTY_STATE;
+      if (!session.userId) {
+        // Sessions saved before user ids existed.
+        session.userId = crypto.randomUUID();
+        session.nickname = randomNickname();
+        write(SESSION_KEY, session);
+      }
       const trips: Trip[] = (read<StoredTrip[]>(TRIPS_KEY) ?? []).map((t) => ({
         id: t.id,
         from: t.from,
@@ -52,15 +59,26 @@ export function createLocalBackend(): AuthBackend {
         compartment: t.compartment,
         verifiedAt: t.verifiedAt,
       }));
-      return { account: session.account, displayName: session.displayName, trips };
+      return { account: session.account, userId: session.userId, nickname: session.nickname, trips };
     },
     async signInAsGuest() {
-      write(SESSION_KEY, { account: "guest", displayName: null } satisfies StoredSession);
+      write(SESSION_KEY, { account: "guest", userId: crypto.randomUUID(), nickname: randomNickname() } satisfies StoredSession);
       notify();
     },
     async signInWithGoogle() {
-      // Trips stay under the same key, mirroring Supabase identity linking.
-      write(SESSION_KEY, { account: "google", displayName: "개발 모드 사용자" } satisfies StoredSession);
+      // Same user id and trips, mirroring Supabase identity linking.
+      const current = read<StoredSession>(SESSION_KEY);
+      write(SESSION_KEY, {
+        account: "google",
+        userId: current?.userId ?? crypto.randomUUID(),
+        nickname: current?.nickname ?? randomNickname(),
+      } satisfies StoredSession);
+      notify();
+    },
+    async setNickname(nickname) {
+      const current = read<StoredSession>(SESSION_KEY);
+      if (!current) return;
+      write(SESSION_KEY, { ...current, nickname });
       notify();
     },
     async signOut() {

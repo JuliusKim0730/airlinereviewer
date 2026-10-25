@@ -1,0 +1,3 @@
+{
+  "_comment": "도시 IATA 코드별 큐레이션 상품. 제휴사 대시보드에서 만든 제휴 링크를 넣으세요. 예: { \"partner\": \"klook\", \"partnerName\": \"Klook\", \"title\": \"...\", \"subtitle\": \"...\", \"url\": \"https://...\", \"priceText\": \"₩25,000~\" }"
+}

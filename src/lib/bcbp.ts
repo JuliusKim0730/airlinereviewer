@@ -112,3 +112,37 @@ function stripLeadingZeros(value: string): string {
 function stripTitle(givenName: string): string {
   return givenName.replace(/\s+(MR|MRS|MS|MISS|MSTR|DR)$/, "").trim();
 }
+
+/** Build a single-leg BCBP string. Used for the demo boarding pass and tests. */
+export function buildBcbp(p: {
+  surname: string;
+  givenName: string;
+  pnr: string;
+  from: string;
+  to: string;
+  carrier: string;
+  flightNumber: string;
+  date: string;
+  seat: string;
+  compartment?: string;
+}): string {
+  const d = new Date(`${p.date}T00:00:00Z`);
+  const dayOfYear = Math.round((d.getTime() - Date.UTC(d.getUTCFullYear(), 0, 1)) / 864e5) + 1;
+  const seat = p.seat.match(/^(\d+)([A-Z])$/);
+  return (
+    "M1" +
+    `${p.surname}/${p.givenName}`.padEnd(20, " ").slice(0, 20) +
+    "E" +
+    p.pnr.padEnd(7, " ") +
+    p.from +
+    p.to +
+    p.carrier.padEnd(3, " ") +
+    p.flightNumber.padStart(4, "0").padEnd(5, " ") +
+    String(dayOfYear).padStart(3, "0") +
+    (p.compartment ?? "Y") +
+    (seat ? seat[1].padStart(3, "0") + seat[2] : p.seat.padEnd(4, " ")) +
+    "0001 " +
+    "1" +
+    "00"
+  );
+}

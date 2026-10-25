@@ -11,6 +11,9 @@ interface StoredSession {
   account: "guest" | "google";
   userId: string;
   nickname: string;
+  passengerHash?: string;
+  passengerMask?: string;
+  nameMismatches?: number;
 }
 
 type StoredTrip = Trip & { ticketHash: string };
@@ -59,7 +62,14 @@ export function createLocalBackend(): AuthBackend {
         compartment: t.compartment,
         verifiedAt: t.verifiedAt,
       }));
-      return { account: session.account, userId: session.userId, nickname: session.nickname, trips };
+      return {
+        account: session.account,
+        userId: session.userId,
+        nickname: session.nickname,
+        trips,
+        passengerMask: session.passengerMask ?? null,
+        nameMismatches: session.nameMismatches ?? 0,
+      };
     },
     async signInAsGuest() {
       write(SESSION_KEY, { account: "guest", userId: crypto.randomUUID(), nickname: randomNickname() } satisfies StoredSession);
@@ -69,6 +79,7 @@ export function createLocalBackend(): AuthBackend {
       // Same user id and trips, mirroring Supabase identity linking.
       const current = read<StoredSession>(SESSION_KEY);
       write(SESSION_KEY, {
+        ...current,
         account: "google",
         userId: current?.userId ?? crypto.randomUUID(),
         nickname: current?.nickname ?? randomNickname(),
@@ -87,16 +98,30 @@ export function createLocalBackend(): AuthBackend {
       notify();
     },
     async addTrips(newTrips: NewTrip[]) {
+      const session = read<StoredSession>(SESSION_KEY);
+      if (!session) throw new Error("로그인이 필요합니다.");
       const trips = read<StoredTrip[]>(TRIPS_KEY) ?? [];
       let added = 0;
+      let nameMismatch = 0;
       for (const t of newTrips) {
+        // The first verified pass binds this account to that passenger name.
+        if (!session.passengerHash) {
+          session.passengerHash = t.passengerHash;
+          session.passengerMask = t.passengerMask;
+        }
+        if (session.passengerHash !== t.passengerHash) {
+          nameMismatch++;
+          continue;
+        }
         if (trips.some((existing) => existing.ticketHash === t.ticketHash)) continue;
         trips.push({ ...t, id: crypto.randomUUID(), verifiedAt: new Date().toISOString() });
         added++;
       }
+      if (nameMismatch > 0) session.nameMismatches = (session.nameMismatches ?? 0) + 1;
+      write(SESSION_KEY, session);
       write(TRIPS_KEY, trips);
       notify();
-      return { added, duplicates: newTrips.length - added };
+      return { added, duplicates: newTrips.length - added - nameMismatch, nameMismatch };
     },
     onChange(listener) {
       listeners.add(listener);

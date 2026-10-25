@@ -87,14 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [backend, repo]);
 
   const trust = useMemo(
-    () => computeTrust({ verifiedTrips: state.trips.length, google: state.account === "google", ...extras }),
-    [state.trips.length, state.account, extras],
+    () => computeTrust({ verifiedTrips: state.trips.length, google: state.account === "google", nameMismatches: state.nameMismatches, ...extras }),
+    [state.trips.length, state.account, state.nameMismatches, extras],
   );
 
   // Layout effect: runs before any page's data-loading effects in the same commit.
   useLayoutEffect(() => {
-    session.set(state.userId ? { id: state.userId, name: state.nickname ?? "여행자", trust: trust.score } : null);
-  }, [session, state.userId, state.nickname, trust.score]);
+    session.set(state.userId ? { id: state.userId, name: state.nickname ?? "여행자", trust: trust.score, tripIds: state.trips.map((t) => t.id) } : null);
+  }, [session, state.userId, state.nickname, trust.score, state.trips]);
 
   const value = useMemo<AuthContextValue>(() => {
     const viewer: Viewer = { account: state.account, verifiedTrips: state.trips.length };

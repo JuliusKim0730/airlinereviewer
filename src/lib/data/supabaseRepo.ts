@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { prepareImage } from "./media";
 import type { Repo } from "./repo";
 import type { CurrentUser } from "./localRepo";
-import type { Comment, CompanionPost, CompanionRating, CompanionRequest, Expense, Message, Post, Review, Story } from "./types";
+import { normalizeReview, type Comment, type CompanionPost, type CompanionRating, type CompanionRequest, type Expense, type Message, type Post, type Review, type ReviewDetails, type Story } from "./types";
 
 // Column names follow supabase/migrations. Rows are mapped to the app's camelCase types here.
 
@@ -11,24 +11,27 @@ type Row = Record<string, unknown>;
 const s = (v: unknown) => (v ?? "") as string;
 const n = (v: unknown) => Number(v ?? 0);
 
-const toReview = (r: Row): Review => ({
-  id: s(r.id),
-  authorId: s(r.author_id),
-  authorName: s((r.profiles as Row | null)?.nickname),
-  tripId: (r.trip_id as string | null) ?? null,
-  from: s(r.dep_iata),
-  to: s(r.arr_iata),
-  carrier: s(r.carrier),
-  flightNumber: s(r.flight_number),
-  flightDate: s(r.flight_date),
-  aircraft: (r.aircraft as string | null) ?? null,
-  seat: s(r.seat),
-  ratings: { seat: n(r.rating_seat), meal: n(r.rating_meal), service: n(r.rating_service), punctuality: n(r.rating_punctuality) },
-  overall: n(r.overall),
-  body: s(r.body),
-  photos: (r.photos as string[] | null) ?? [],
-  createdAt: s(r.created_at),
-});
+const toReview = (r: Row): Review =>
+  normalizeReview({
+    id: s(r.id),
+    authorId: s(r.author_id),
+    authorName: s((r.profiles as Row | null)?.nickname),
+    tripId: (r.trip_id as string | null) ?? null,
+    verified: Boolean(r.verified),
+    isPast: Boolean(r.is_past),
+    from: s(r.dep_iata),
+    to: s(r.arr_iata),
+    carrier: s(r.carrier),
+    flightNumber: s(r.flight_number),
+    flightDate: s(r.flight_date),
+    aircraft: (r.aircraft as string | null) ?? null,
+    seat: s(r.seat),
+    value: n(r.value),
+    summary: s(r.summary),
+    details: (r.details as ReviewDetails | null) ?? undefined,
+    photos: (r.photos as string[] | null) ?? [],
+    createdAt: s(r.created_at),
+  });
 
 const toComment = (r: Row): Comment => ({
   id: s(r.id),
@@ -91,19 +94,17 @@ export function createSupabaseRepo(sb: SupabaseClient, currentUser: () => Curren
         await sb.from("reviews").insert({
           author_id: user.id,
           trip_id: input.tripId,
+          is_past: input.isPast,
           dep_iata: input.from,
           arr_iata: input.to,
           carrier: input.carrier,
           flight_number: input.flightNumber,
-          flight_date: input.flightDate,
+          flight_date: input.flightDate || null,
           aircraft: input.aircraft,
           seat: input.seat,
-          rating_seat: input.ratings.seat,
-          rating_meal: input.ratings.meal,
-          rating_service: input.ratings.service,
-          rating_punctuality: input.ratings.punctuality,
-          overall: input.overall,
-          body: input.body,
+          value: input.value,
+          summary: input.summary,
+          details: input.details,
           photos,
         }),
       );

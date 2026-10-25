@@ -3,16 +3,44 @@ export interface Author {
   authorName: string;
 }
 
-export interface Ratings {
-  seat: number;
-  meal: number;
-  service: number;
-  punctuality: number;
+/** Structured "how it felt" answers. Empty string means the reviewer skipped it. */
+export interface ReviewDetails {
+  seatSpace: "" | "roomy" | "ok" | "tight";
+  seatTemp: "" | "hot" | "ok" | "cold";
+  recline: "" | "fine" | "limited" | "none";
+  seatNote: string;
+  pros: string;
+  cons: string;
+  /** Check-in counter location, boarding, seat picks, etc. */
+  tips: string;
+  meal: string;
+  lavatory: "" | "clean" | "ok" | "bad";
+  lavatoryNote: string;
+  extra: string;
 }
+
+export const EMPTY_DETAILS: ReviewDetails = {
+  seatSpace: "",
+  seatTemp: "",
+  recline: "",
+  seatNote: "",
+  pros: "",
+  cons: "",
+  tips: "",
+  meal: "",
+  lavatory: "",
+  lavatoryNote: "",
+  extra: "",
+};
 
 export interface Review extends Author {
   id: string;
+  /** Set when the review is tied to a boarding pass this author verified. */
   tripId: string | null;
+  verified: boolean;
+  /** Written from memory about an older flight. */
+  isPast: boolean;
+  /** Flight fields are optional for unverified reviews; empty string when unknown. */
   from: string;
   to: string;
   carrier: string;
@@ -20,14 +48,40 @@ export interface Review extends Author {
   flightDate: string;
   aircraft: string | null;
   seat: string;
-  ratings: Ratings;
-  overall: number;
-  body: string;
+  /** 가심비: satisfaction for the money, 1-5. Required. */
+  value: number;
+  /** One-line summary. Required. */
+  summary: string;
+  details: ReviewDetails;
   photos: string[];
   createdAt: string;
 }
 
-export type NewReview = Omit<Review, "id" | "createdAt" | "authorId" | "authorName" | "photos"> & { photos: Blob[] };
+export type NewReview = Omit<Review, "id" | "createdAt" | "authorId" | "authorName" | "photos" | "verified"> & { photos: Blob[] };
+
+/** Fills fields missing from reviews saved by older versions of the app. */
+export function normalizeReview(r: Partial<Review> & { overall?: number; body?: string }): Review {
+  return {
+    id: r.id ?? "",
+    authorId: r.authorId ?? "",
+    authorName: r.authorName ?? "",
+    tripId: r.tripId ?? null,
+    verified: r.verified ?? Boolean(r.tripId),
+    isPast: r.isPast ?? false,
+    from: r.from ?? "",
+    to: r.to ?? "",
+    carrier: r.carrier ?? "",
+    flightNumber: r.flightNumber ?? "",
+    flightDate: r.flightDate ?? "",
+    aircraft: r.aircraft ?? null,
+    seat: r.seat ?? "",
+    value: r.value ?? Math.round(r.overall ?? 0),
+    summary: r.summary ?? (r.body ?? "").split("\n")[0].slice(0, 80),
+    details: { ...EMPTY_DETAILS, ...r.details, ...(r.body && !r.details ? { extra: r.body } : {}) },
+    photos: r.photos ?? [],
+    createdAt: r.createdAt ?? "",
+  };
+}
 
 export type Board = "city" | "airline" | "free";
 

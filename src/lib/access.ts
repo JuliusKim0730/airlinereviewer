@@ -1,5 +1,6 @@
 // Who may do what. Everyone can browse; any action needs a session (guest is
-// enough); writing and companion features need a verified boarding pass.
+// enough); posts, stories and companion features need a verified boarding pass.
+// Reviews only need a session: unverified ones are labelled as such.
 
 export type AccountKind = "none" | "guest" | "google";
 
@@ -24,7 +25,7 @@ export type AccessResult =
   | { ok: false; need: "login" | "verify" | "google" };
 
 const NEEDS_SESSION: Action[] = ["react", "verifyTicket", "writeReview", "writePost", "postStory", "companion", "syncRecords"];
-const NEEDS_VERIFIED: Action[] = ["writeReview", "writePost", "postStory", "companion"];
+const NEEDS_VERIFIED: Action[] = ["writePost", "postStory", "companion"];
 
 export function checkAccess(viewer: Viewer, action: Action): AccessResult {
   if (action === "browse") return { ok: true };

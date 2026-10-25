@@ -10,6 +10,8 @@ export interface TrustInputs {
   posts: number;
   /** Reports against this person that were upheld. */
   reports: number;
+  /** Attempts to verify a boarding pass in someone else's name. */
+  nameMismatches?: number;
 }
 
 export interface TrustResult {
@@ -37,6 +39,7 @@ export const TRUST_POINTS = {
   maxContributions: 5,
   noShow: -20,
   report: -10,
+  nameMismatch: -10,
 };
 
 export function computeTrust(input: TrustInputs): TrustResult {
@@ -52,7 +55,8 @@ export function computeTrust(input: TrustInputs): TrustResult {
     goodRatings * P.perGoodRating +
     contributions * P.perContribution +
     noShows * P.noShow +
-    input.reports * P.report;
+    input.reports * P.report +
+    (input.nameMismatches ?? 0) * P.nameMismatch;
   const score = Math.max(0, Math.min(100, raw));
   const levelIndex = LEVELS.findIndex((l) => score >= l.min);
 

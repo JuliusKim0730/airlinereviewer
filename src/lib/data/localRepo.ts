@@ -4,12 +4,14 @@
 import { deleteLocalMedia, prepareImage, putLocalMedia } from "./media";
 import type { Repo } from "./repo";
 import { seedCompanions, seedPosts, seedReviews, seedStories } from "./seed";
-import type { Comment, CompanionPost, CompanionRating, CompanionRequest, Expense, Message, Post, Review, Story } from "./types";
+import { normalizeReview, type Comment, type CompanionPost, type CompanionRating, type CompanionRequest, type Expense, type Message, type Post, type Review, type Story } from "./types";
 
 export interface CurrentUser {
   id: string;
   name: string;
   trust: number;
+  /** Ids of this user's verified trips. */
+  tripIds: string[];
 }
 
 interface Like {
@@ -100,11 +102,13 @@ export function createLocalRepo(currentUser: () => CurrentUser | null): Repo {
   return {
     async listReviews() {
       const hidden = blocked();
-      return newestFirst(reviews.all().filter((r) => !hidden.has(r.authorId)));
+      return newestFirst(reviews.all().map(normalizeReview).filter((r) => !hidden.has(r.authorId)));
     },
     async createReview(input) {
       const user = me();
-      reviews.insert({ ...input, id: id(), authorId: user.id, authorName: user.name, photos: await uploadAll(input.photos), createdAt: now() });
+      // Only a trip from this account's own verified list makes a review "verified".
+      const verified = Boolean(input.tripId && user.tripIds.includes(input.tripId));
+      reviews.insert({ ...input, tripId: verified ? input.tripId : null, verified, id: id(), authorId: user.id, authorName: user.name, photos: await uploadAll(input.photos), createdAt: now() });
     },
 
     async listPosts(board) {

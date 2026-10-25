@@ -37,12 +37,14 @@ export function createSupabaseBackend(supabase: SupabaseClient): AuthBackend {
         .from("trips")
         .select("id, dep_iata, arr_iata, carrier, flight_number, flight_date, seat, compartment, created_at")
         .order("flight_date", { ascending: false });
-      const { data: profile } = await supabase.from("profiles").select("nickname").eq("id", user.id).maybeSingle();
+      const { data: profile } = await supabase.from("profiles").select("nickname, passenger_mask, name_mismatches").eq("id", user.id).maybeSingle();
       return {
         account: user.is_anonymous ? "guest" : "google",
         userId: user.id,
         nickname: (profile?.nickname as string | undefined) ?? null,
         trips: (rows ?? []).map(toTrip),
+        passengerMask: (profile?.passenger_mask as string | null | undefined) ?? null,
+        nameMismatches: Number(profile?.name_mismatches ?? 0),
       };
     },
     async signInAsGuest() {
@@ -66,6 +68,7 @@ export function createSupabaseBackend(supabase: SupabaseClient): AuthBackend {
       const userId = data.session?.user.id;
       if (!userId) throw new Error("로그인이 필요합니다.");
       let added = 0;
+      let nameMismatch = 0;
       for (const t of newTrips) {
         const { error } = await supabase.from("trips").insert({
           user_id: userId,
@@ -77,12 +80,16 @@ export function createSupabaseBackend(supabase: SupabaseClient): AuthBackend {
           seat: t.seat,
           compartment: t.compartment,
           ticket_hash: t.ticketHash,
+          passenger_hash: t.passengerHash,
+          passenger_mask: t.passengerMask,
           verification_method: "barcode",
         });
         if (!error) added++;
+        else if (error.message.includes("passenger_mismatch")) nameMismatch++;
         else if (error.code !== "23505") throw error; // 23505 = ticket already claimed
       }
-      return { added, duplicates: newTrips.length - added };
+      if (nameMismatch > 0) await supabase.rpc("report_name_mismatch");
+      return { added, duplicates: newTrips.length - added - nameMismatch, nameMismatch };
     },
     async setNickname(nickname) {
       const { data } = await supabase.auth.getSession();

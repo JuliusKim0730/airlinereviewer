@@ -84,12 +84,13 @@ export function totalKrw(expenses: ExpenseLike[], ratesToKrw: Record<string, num
   return { total: Math.round(total), missing: [...missing] };
 }
 
-/** Average overall rating per airline, best first. */
-export function airlineSummary(reviews: { carrier: string; overall: number }[]): { carrier: string; count: number; avg: number }[] {
+/** Average 가심비 per airline from boarding-pass verified reviews only, best first. */
+export function airlineSummary(reviews: { carrier: string; value: number; verified: boolean }[]): { carrier: string; count: number; avg: number }[] {
   const by = new Map<string, { sum: number; count: number }>();
   reviews.forEach((r) => {
+    if (!r.verified || !r.carrier) return;
     const e = by.get(r.carrier) ?? { sum: 0, count: 0 };
-    e.sum += r.overall;
+    e.sum += r.value;
     e.count++;
     by.set(r.carrier, e);
   });

@@ -6,7 +6,7 @@ import { BcbpError, buildBcbp, parseBcbp, type BoardingPass } from "@/lib/bcbp";
 import { findAirport } from "@/lib/airports";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { HOME_AIRPORTS, todayIso } from "@/lib/stay";
-import { ticketHash } from "@/lib/ticketHash";
+import { passengerHash, passengerMask, ticketHash } from "@/lib/ticketHash";
 import BarcodeScanner, { decodeImage } from "./BarcodeScanner";
 import FlightCard from "./FlightCard";
 import { useRequireAccess } from "./Gate";
@@ -61,6 +61,7 @@ export default function TicketVerifier() {
   }
 
   async function save(p: BoardingPass) {
+    const nameHash = await passengerHash(p);
     const trips = await Promise.all(
       p.legs.map(async (leg) => ({
         from: leg.from,
@@ -71,12 +72,19 @@ export default function TicketVerifier() {
         seat: leg.seat,
         compartment: leg.compartment,
         ticketHash: await ticketHash(p, leg),
+        passengerHash: nameHash,
+        passengerMask: passengerMask(p),
       })),
     );
     try {
-      const { added, duplicates } = await auth.addTrips(trips);
+      const { added, duplicates, nameMismatch } = await auth.addTrips(trips);
       setSaved(
-        added === 0
+        nameMismatch > 0
+          ? {
+              ok: false,
+              message: `이 계정은 ${auth.passengerMask ?? "다른 탑승객"} 이름으로 인증돼 있어요. 본인 보딩패스만 인증할 수 있어요. 다른 이름으로 인증을 시도하면 신뢰도가 내려가요.`,
+            }
+          : added === 0
           ? { ok: false, message: "이미 인증된 티켓이에요. 같은 티켓은 한 계정에서만 인증할 수 있어요." }
           : { ok: true, message: duplicates > 0 ? `${added}개 구간을 인증했어요. ${duplicates}개는 이미 인증된 구간이에요.` : "인증 완료! 이제 후기, 지금 이 순간, 동행이 열려요." },
       );
@@ -135,7 +143,7 @@ export default function TicketVerifier() {
             <FlightCard key={i} leg={leg} />
           ))}
 
-          {!saved?.ok && (
+          {!saved && (
             <button type="button" className="rounded-xl bg-sky-600 px-4 py-3 font-medium text-white" onClick={() => requireAccess("verifyTicket", () => save(pass))}>
               이 탑승으로 인증하기
             </button>

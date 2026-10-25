@@ -15,6 +15,10 @@ export interface Trip {
 export type NewTrip = Omit<Trip, "id" | "verifiedAt"> & {
   /** SHA-256 of PNR + surname + leg, used to stop the same ticket being claimed twice. */
   ticketHash: string;
+  /** SHA-256 of the passenger name, used to bind an account to one traveller. */
+  passengerHash: string;
+  /** Masked passenger name for display, first two letters of each part. */
+  passengerMask: string;
 };
 
 export interface AuthState {
@@ -22,11 +26,17 @@ export interface AuthState {
   userId: string | null;
   nickname: string | null;
   trips: Trip[];
+  /** Masked name of the passenger this account is bound to, once a pass is verified. */
+  passengerMask: string | null;
+  /** Boarding passes refused because the passenger name did not match. */
+  nameMismatches: number;
 }
 
 export interface AddTripsResult {
   added: number;
   duplicates: number;
+  /** Legs refused because the passenger name differs from the account's. */
+  nameMismatch: number;
 }
 
 export interface AuthBackend {
@@ -42,6 +52,6 @@ export interface AuthBackend {
   onChange(listener: () => void): () => void;
 }
 
-export const EMPTY_STATE: AuthState = { account: "none", userId: null, nickname: null, trips: [] };
+export const EMPTY_STATE: AuthState = { account: "none", userId: null, nickname: null, trips: [], passengerMask: null, nameMismatches: 0 };
 
 export const randomNickname = () => `여행자${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}`;

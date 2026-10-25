@@ -6,12 +6,21 @@
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   nickname text not null,
+  -- SHA-256 of the boarding-pass passenger name this account verified first.
+  -- Later passes with a different name are refused, so nobody verifies on
+  -- someone else's ticket. Only the hash and a masked name are kept.
+  passenger_hash text,
+  passenger_mask text,
+  name_mismatches integer not null default 0,
   created_at timestamptz not null default now()
 );
 
 alter table public.profiles enable row level security;
 create policy "Profiles are public" on public.profiles for select using (true);
 create policy "Users edit their own profile" on public.profiles for update using (auth.uid() = id);
+-- Users may change their nickname, but not the passenger binding or mismatch count.
+revoke update on public.profiles from authenticated, anon;
+grant update (nickname) on public.profiles to authenticated;
 
 -- Every new auth user (guest or Google) gets a profile with a random nickname.
 create function public.handle_new_user() returns trigger
@@ -52,24 +61,55 @@ language sql stable security definer set search_path = public as $$
   );
 $$;
 
+-- Bind each account to one passenger name. The first verified pass sets it;
+-- a pass with a different name is refused and counted against trust.
+alter table public.trips add column passenger_hash text not null default '', add column passenger_mask text not null default '';
+
+create function public.check_passenger() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  bound text;
+begin
+  select passenger_hash into bound from public.profiles where id = new.user_id;
+  if bound is null then
+    update public.profiles set passenger_hash = new.passenger_hash, passenger_mask = new.passenger_mask where id = new.user_id;
+  elsif bound <> new.passenger_hash then
+    raise exception 'passenger_mismatch' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trips_check_passenger before insert on public.trips
+  for each row execute function public.check_passenger();
+
+-- Called by the client after a refused pass, since the refused insert rolls back.
+create function public.report_name_mismatch() returns void
+language sql security definer set search_path = public as $$
+  update public.profiles set name_mismatches = name_mismatches + 1 where id = auth.uid();
+$$;
+
 -- ---------------------------------------------------------------- reviews
 create table public.reviews (
   id uuid primary key default gen_random_uuid(),
   author_id uuid not null references public.profiles (id) on delete cascade,
+  -- Set only for a boarding pass this author verified (enforced by the insert policy).
   trip_id uuid references public.trips (id) on delete set null,
-  dep_iata char(3) not null,
-  arr_iata char(3) not null,
-  carrier text not null,
-  flight_number text not null,
-  flight_date date not null,
+  verified boolean generated always as (trip_id is not null) stored,
+  is_past boolean not null default false,
+  -- Flight fields are optional for unverified reviews.
+  dep_iata text not null default '',
+  arr_iata text not null default '',
+  carrier text not null default '',
+  flight_number text not null default '',
+  flight_date date,
   aircraft text,
   seat text not null default '',
-  rating_seat smallint not null check (rating_seat between 1 and 5),
-  rating_meal smallint not null check (rating_meal between 1 and 5),
-  rating_service smallint not null check (rating_service between 1 and 5),
-  rating_punctuality smallint not null check (rating_punctuality between 1 and 5),
-  overall numeric(2, 1) not null check (overall between 1 and 5),
-  body text not null check (char_length(body) between 1 and 2000),
+  -- 가심비 (satisfaction for the money) and a one-line summary are required.
+  value smallint not null check (value between 1 and 5),
+  summary text not null check (char_length(summary) between 1 and 80),
+  -- seatSpace, seatTemp, recline, seatNote, pros, cons, tips, meal, lavatory, lavatoryNote, extra
+  details jsonb not null default '{}',
   photos text[] not null default '{}',
   created_at timestamptz not null default now()
 );
@@ -77,8 +117,8 @@ create index reviews_route_idx on public.reviews (carrier, dep_iata, arr_iata);
 
 alter table public.reviews enable row level security;
 create policy "Reviews are public" on public.reviews for select using (true);
-create policy "Verified travellers review their own trips" on public.reviews for insert
-  with check (auth.uid() = author_id and public.is_verified(auth.uid())
+create policy "Signed-in users review, verified only for their own trips" on public.reviews for insert
+  with check (auth.uid() = author_id
     and (trip_id is null or exists (select 1 from public.trips where id = trip_id and user_id = auth.uid())));
 create policy "Authors delete their reviews" on public.reviews for delete using (auth.uid() = author_id);
 

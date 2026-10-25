@@ -92,10 +92,36 @@ describe("products", () => {
 import { airlineSummary } from "./stats";
 
 describe("airlineSummary", () => {
-  it("averages per airline, best first", () => {
-    expect(airlineSummary([{ carrier: "KE", overall: 4 }, { carrier: "KE", overall: 5 }, { carrier: "VJ", overall: 3 }])).toEqual([
+  it("averages verified reviews per airline, best first", () => {
+    expect(
+      airlineSummary([
+        { carrier: "KE", value: 4, verified: true },
+        { carrier: "KE", value: 5, verified: true },
+        { carrier: "KE", value: 1, verified: false },
+        { carrier: "VJ", value: 3, verified: true },
+      ]),
+    ).toEqual([
       { carrier: "KE", count: 2, avg: 4.5 },
       { carrier: "VJ", count: 1, avg: 3 },
     ]);
+  });
+});
+
+import { normalizeReview } from "./data/types";
+import { passengerMask } from "./ticketHash";
+
+describe("normalizeReview", () => {
+  it("upgrades reviews saved in the old star-rating format", () => {
+    const r = normalizeReview({ id: "x", tripId: "t1", overall: 4.5, body: "좋았어요\n둘째 줄" });
+    expect(r.verified).toBe(true);
+    expect(r.value).toBe(5);
+    expect(r.summary).toBe("좋았어요");
+    expect(r.details.extra).toBe("좋았어요\n둘째 줄");
+  });
+});
+
+describe("passengerMask", () => {
+  it("keeps only the first two letters of each name part", () => {
+    expect(passengerMask({ surname: "HONG", givenName: "GIL DONG" } as Parameters<typeof passengerMask>[0])).toBe("HO**/GI**");
   });
 });

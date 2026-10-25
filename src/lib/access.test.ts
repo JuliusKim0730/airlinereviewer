@@ -22,7 +22,8 @@ describe("checkAccess", () => {
   });
 
   it("requires a verified boarding pass to write or join companions", () => {
-    expect(checkAccess(guest, "writeReview")).toEqual({ ok: false, need: "verify" });
+    expect(checkAccess(guest, "writePost")).toEqual({ ok: false, need: "verify" });
+    expect(checkAccess(guest, "writeReview")).toEqual({ ok: true });
     expect(checkAccess(google, "companion")).toEqual({ ok: false, need: "verify" });
     expect(checkAccess(verifiedGuest, "writeReview")).toEqual({ ok: true });
     expect(checkAccess(verifiedGuest, "companion")).toEqual({ ok: true });

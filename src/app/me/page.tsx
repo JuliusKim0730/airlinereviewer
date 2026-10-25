@@ -204,7 +204,7 @@ function Tile({ label, value, sub, wide }: { label: string; value: string; sub?:
 }
 
 function TrustCard() {
-  const { trust } = useAuth();
+  const { trust, passengerMask, nameMismatches } = useAuth();
   return (
     <section className="rounded-2xl border border-emerald-200 p-4 dark:border-emerald-900">
       <div className="flex items-baseline justify-between">
@@ -229,8 +229,14 @@ function TrustCard() {
           </ul>
         </>
       )}
+      {passengerMask && <p className="mt-3 text-sm">🎫 인증된 탑승객 이름 {passengerMask}</p>}
+      {nameMismatches > 0 && (
+        <p className="mt-2 rounded-lg bg-red-50 p-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          다른 이름의 보딩패스 인증 시도 {nameMismatches}회 ({nameMismatches * TRUST_POINTS.nameMismatch}점)
+        </p>
+      )}
       <p className="mt-3 text-xs text-zinc-500">
-        동행에서 노쇼하면 {TRUST_POINTS.noShow}점, 신고가 확인되면 {TRUST_POINTS.report}점이에요. 신뢰도는 동행 모집·신청 때 상대에게 보여요.
+        동행에서 노쇼하면 {TRUST_POINTS.noShow}점, 신고가 확인되면 {TRUST_POINTS.report}점, 다른 사람 이름의 보딩패스를 인증하려 하면 {TRUST_POINTS.nameMismatch}점이에요. 신뢰도는 동행 모집·신청 때 상대에게 보여요.
       </p>
     </section>
   );
